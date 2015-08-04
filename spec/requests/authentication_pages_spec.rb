@@ -29,9 +29,7 @@ describe "Authentication" do
     describe "with valid information" do
       let(:user) { FactoryGirl.create(:user) }
       before do
-        fill_in "Email",    with: user.email.upcase
-        fill_in "Password", with: user.password
-        click_button "Sign in"
+        sign_in user
       end
 
       it { should have_title(user.name) }
@@ -45,6 +43,21 @@ describe "Authentication" do
 
   describe "authorization" do
     
+    describe "as signed-in user " do
+      let(:user) { FactoryGirl.create(:user) }
+      before { sign_in user, no_capybara:true }
+ 
+      describe "cannot access #new action" do
+        before { get new_user_path }
+        specify { response.should redirect_to(root_path) }
+      end
+
+      describe "cannot access #create action" do
+        before { post users_path(user) }
+        specify { response.should redirect_to(root_path) }
+      end
+    end
+
     describe "as non-admin user" do
       let(:user) { FactoryGirl.create(:user) }
       let(:non_admin) { FactoryGirl.create(:user) }
@@ -57,15 +70,24 @@ describe "Authentication" do
       end
     end
 
+    describe "as admin user" do
+      let(:admin) { FactoryGirl.create(:admin) }
+      before { sign_in admin, no_capybara: true }
+
+      describe "should not be able to delete themselves via #destroy action" do
+        specify do
+          expect { delete user_path(admin) }.not_to change(User, :count).by(-1)
+        end
+      end
+    end
+
     describe "for non-signed-in users" do
       let(:user) { FactoryGirl.create(:user) }
 
       describe "when attempting to visit a protected page" do
         before do
           visit edit_user_path(user)
-          fill_in "Email",    with: user.email
-          fill_in "Password", with: user.password
-          click_button "Sign in"
+          sign_in user
         end
 
         describe "after signing in" do
